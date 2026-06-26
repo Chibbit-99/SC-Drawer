@@ -22,6 +22,8 @@
     --slide-tint: #fffbeb;
     --sheet-color: #3b82f6;
     --sheet-tint: #eff6ff;
+    --code-color: #8b5cf6;
+    --code-tint: #f5f3ff;
     --radius: 12px;
     --transition: all 0.25s ease;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -304,6 +306,11 @@
           <span class="tname">Spreadsheet</span>
           <span class="tdesc">Crunch numbers</span>
         </button>
+        <button class="type-option" data-type="code" type="button">
+          <span class="ticon">&#128187;</span>
+          <span class="tname">Code</span>
+          <span class="tdesc">Write code</span>
+        </button>
       </div>
       <div class="modal-name-row">
         <input type="text" id="newFileName" placeholder="Untitled" maxlength="120">
@@ -324,6 +331,9 @@
   <!-- ============ SHEET EDITOR ============ -->
   <div id="sheetEditor" class="editor-shell hidden"></div>
 
+  <!-- ============ CODE EDITOR ============ -->
+  <div id="codeEditor" class="editor-shell hidden"></div>
+
 </div>
 
 <script>
@@ -336,6 +346,7 @@ const TYPE_META = {
   doc:    { label:'Document',   icon:'&#128221;', color:'var(--doc-color)' },
   slides: { label:'Slideshow',  icon:'&#127909;', color:'var(--slide-color)' },
   sheet:  { label:'Spreadsheet',icon:'&#128202;', color:'var(--sheet-color)' },
+  code:   { label:'Code',       icon:'&#128187;', color:'var(--code-color)' },
 };
 
 function loadFiles(){
@@ -378,6 +389,7 @@ function defaultContentFor(type){
   if(type === 'doc') return { blocks: [ { type:'p', html:'' } ] };
   if(type === 'slides') return { slides: [ makeSlide() ], current: 0 };
   if(type === 'sheet') return { rows: 60, cols: 26, cells:{}, colWidths:{}, };
+  if(type === 'code') return { code: '', language: 'auto' };
   return {};
 }
 
@@ -562,6 +574,7 @@ function openFile(id){
   if(file.type === 'doc') openDocEditor(file);
   else if(file.type === 'slides') openSlidesEditor(file);
   else if(file.type === 'sheet') openSheetEditor(file);
+  else if(file.type === 'code') openCodeEditor(file);
 }
 function closeEditor(shellId){
   document.getElementById(shellId).classList.add('hidden');
@@ -589,6 +602,7 @@ function downloadBlob(blob, filename){
 <script src="document.js"></script>
 <script src="slideshow.js"></script>
 <script src="spreadsheet.js"></script>
+<script src="code.js"></script>
 
 </body>
 </html>
