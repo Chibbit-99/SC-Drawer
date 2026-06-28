@@ -24,6 +24,12 @@
     --sheet-tint: #eff6ff;
     --code-color: #8b5cf6;
     --code-tint: #f5f3ff;
+    --video-color: #ec4899;
+    --video-tint: #fce7f3;
+    --music-color: #06b6d4;
+    --music-tint: #ecfdfd;
+    --cad-color: #d97706;
+    --cad-tint: #fef3c7;
     --radius: 12px;
     --transition: all 0.25s ease;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -311,6 +317,28 @@
           <span class="tname">Code</span>
           <span class="tdesc">Write code</span>
         </button>
+        <button class="type-option" data-type="video" type="button">
+          <span class="ticon">&#127916;</span>
+          <span class="tname">Video</span>
+          <span class="tdesc">Edit videos</span>
+        </button>
+        <button class="type-option" id="moreBtn" type="button" style="border-style:dashed;">
+          <span class="ticon">⋯</span>
+          <span class="tname">More</span>
+          <span class="tdesc">See all</span>
+        </button>
+      </div>
+      <div id="moreOptions" class="type-options" style="display:none; margin-bottom:20px;" role="group" aria-label="More file types">
+        <button class="type-option" data-type="music" type="button">
+          <span class="ticon">&#127925;</span>
+          <span class="tname">Music</span>
+          <span class="tdesc">Compose music</span>
+        </button>
+        <button class="type-option" data-type="cad" type="button">
+          <span class="ticon">&#128295;</span>
+          <span class="tname">CAD</span>
+          <span class="tdesc">2D drawing</span>
+        </button>
       </div>
       <div class="modal-name-row">
         <input type="text" id="newFileName" placeholder="Untitled" maxlength="120">
@@ -334,6 +362,15 @@
   <!-- ============ CODE EDITOR ============ -->
   <div id="codeEditor" class="editor-shell hidden"></div>
 
+  <!-- ============ VIDEO EDITOR ============ -->
+  <div id="videoEditor" class="editor-shell hidden"></div>
+
+  <!-- ============ MUSIC EDITOR ============ -->
+  <div id="musicEditor" class="editor-shell hidden"></div>
+
+  <!-- ============ CAD EDITOR ============ -->
+  <div id="cadEditor" class="editor-shell hidden"></div>
+
 </div>
 
 <script>
@@ -347,6 +384,9 @@ const TYPE_META = {
   slides: { label:'Slideshow',  icon:'&#127909;', color:'var(--slide-color)' },
   sheet:  { label:'Spreadsheet',icon:'&#128202;', color:'var(--sheet-color)' },
   code:   { label:'Code',       icon:'&#128187;', color:'var(--code-color)' },
+  video:  { label:'Video',      icon:'&#127916;', color:'var(--video-color)' },
+  music:  { label:'Music',      icon:'&#127925;', color:'var(--music-color)' },
+  cad:    { label:'CAD',        icon:'&#128295;', color:'var(--cad-color)' },
 };
 
 function loadFiles(){
@@ -390,6 +430,9 @@ function defaultContentFor(type){
   if(type === 'slides') return { slides: [ makeSlide() ], current: 0 };
   if(type === 'sheet') return { rows: 60, cols: 26, cells:{}, colWidths:{}, };
   if(type === 'code') return { code: '', language: 'auto' };
+  if(type === 'video') return { clips: [] };
+  if(type === 'music') return { notes: [], bpm: 120 };
+  if(type === 'cad') return { shapes: [] };
   return {};
 }
 
@@ -512,8 +555,14 @@ newFileModal.addEventListener('click', (e)=>{
 });
 document.querySelectorAll('.type-option').forEach(opt=>{
   opt.addEventListener('click', ()=>{
+    if(opt.id === 'moreBtn'){
+      const moreOptions = document.getElementById('moreOptions');
+      moreOptions.style.display = moreOptions.style.display === 'none' ? 'grid' : 'none';
+      return;
+    }
     selectedType = opt.dataset.type;
     document.querySelectorAll('.type-option').forEach(o=>{
+      if(o.id === 'moreBtn') return;
       o.style.borderColor = o === opt ? TYPE_META[o.dataset.type].color : 'var(--border)';
     });
     confirmNewFile.disabled = false;
@@ -575,6 +624,9 @@ function openFile(id){
   else if(file.type === 'slides') openSlidesEditor(file);
   else if(file.type === 'sheet') openSheetEditor(file);
   else if(file.type === 'code') openCodeEditor(file);
+  else if(file.type === 'video') openVideoEditor(file);
+  else if(file.type === 'music') openMusicEditor(file);
+  else if(file.type === 'cad') openCADEditor(file);
 }
 function closeEditor(shellId){
   document.getElementById(shellId).classList.add('hidden');
@@ -603,6 +655,9 @@ function downloadBlob(blob, filename){
 <script src="slideshow.js"></script>
 <script src="spreadsheet.js"></script>
 <script src="code.js"></script>
+<script src="video.js"></script>
+<script src="music.js"></script>
+<script src="cad.js"></script>
 
 </body>
 </html>
