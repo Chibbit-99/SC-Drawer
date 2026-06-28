@@ -1,6 +1,6 @@
 /* =========================================================================
    CAD EDITOR
-   Minimal CAD software for basic 2D drawing and shapes
+   CAD software with 2D drafting plus simple 3D extrusion/isometric editing
    ========================================================================= */
 function openCADEditor(file){
   let shell = document.getElementById('cadEditor');
@@ -36,6 +36,11 @@ function openCADEditor(file){
       <button class="tbtn wide" id="rectBtn">▭ Rect</button>
       <button class="tbtn wide" id="circleBtn">●  Circle</button>
       <button class="tbtn wide" id="textBtn">A Text</button>
+      <button class="tbtn wide" id="box3dBtn">▣ 3D Box</button>
+      <button class="tbtn wide" id="extrudeBtn">⬆ Extrude</button>
+      <button class="tbtn wide" id="dimBtn">↔ Dimension</button>
+      <button class="tbtn wide" id="snapBtn"># Snap</button>
+      <button class="tbtn wide" id="viewBtn">◇ Iso/Top</button>
       <span class="sep"></span>
       <button class="tbtn wide" id="deleteBtn">🗑 Delete</button>
       <span class="sep"></span>
@@ -43,7 +48,7 @@ function openCADEditor(file){
     </div>
     <div class="editor-body">
       <div class="cad-container">
-        <div class="cad-tools" id="cadTools"></div>
+        <div class="cad-tools" id="cadTools"><button class="tool-btn" data-tool="select">↖</button><button class="tool-btn" data-tool="line">╱</button><button class="tool-btn" data-tool="rect">▭</button><button class="tool-btn" data-tool="circle">○</button><button class="tool-btn" data-tool="text">A</button><button class="tool-btn" data-tool="box3d">▣</button><button class="tool-btn" data-tool="dimension">↔</button></div>
         <div class="cad-canvas-wrap" id="cadCanvasWrap">
           <canvas id="cadCanvas" class="cad-canvas" width="1200" height="800"></canvas>
         </div>
@@ -59,14 +64,19 @@ function openCADEditor(file){
   const canvasWrap = shell.querySelector('#cadCanvasWrap');
 
   let shapes = (file.content && file.content.shapes) || [];
+  let snapToGrid = (file.content && file.content.snapToGrid) !== false;
+  let viewMode = (file.content && file.content.viewMode) || 'top';
   let currentTool = 'select';
   let selectedShapeIdx = null;
   let isDrawing = false;
   let startX, startY;
+  function snap(v){ return snapToGrid ? Math.round(v / 20) * 20 : v; }
+  function iso(x,y,z){ return { x: x + (y * 0.55), y: y * 0.32 - z }; }
+  function drawIsoBox(shape, isSelected){ const x=shape.x,y=shape.y,w=shape.w,h=shape.h,d=shape.d||80; const p=iso(x,y,0), q=iso(x+w,y,0), r=iso(x+w,y+h,0), s=iso(x,y+h,0); const pt=iso(x,y,d), qt=iso(x+w,y,d), rt=iso(x+w,y+h,d), st=iso(x,y+h,d); ctx.fillStyle=isSelected?'rgba(245,158,11,.14)':'rgba(59,130,246,.10)'; ctx.beginPath(); [[p,q,r,s],[pt,qt,rt,st],[p,pt,qt,q],[q,qt,rt,r],[r,rt,st,s]].forEach(poly=>{ctx.moveTo(poly[0].x,poly[0].y+260);poly.slice(1).forEach(a=>ctx.lineTo(a.x,a.y+260));ctx.closePath()});ctx.fill();ctx.stroke(); }
 
   function drawShapes(){
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#f8fafc';
+    ctx.fillStyle = viewMode === 'iso' ? '#eef2ff' : '#f8fafc';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 1;
@@ -106,7 +116,14 @@ function openCADEditor(file){
         ctx.fillStyle = '#0f172a';
         ctx.font = '14px monospace';
         ctx.fillText(shape.text, shape.x, shape.y);
+      } else if(shape.type === 'box3d'){
+        drawIsoBox(shape, isSelected);
+      } else if(shape.type === 'dimension'){
+        ctx.beginPath(); ctx.moveTo(shape.x1, shape.y1); ctx.lineTo(shape.x2, shape.y2); ctx.stroke();
+        const len = Math.hypot(shape.x2-shape.x1, shape.y2-shape.y1).toFixed(0);
+        ctx.fillStyle = '#d97706'; ctx.fillText(len + ' px', (shape.x1+shape.x2)/2, (shape.y1+shape.y2)/2 - 6);
       }
+      if(isSelected){ ctx.fillStyle = '#f59e0b'; ctx.fillRect((shape.x||shape.x1||0)-4,(shape.y||shape.y1||0)-4,8,8); }
     });
   }
 
@@ -114,15 +131,15 @@ function openCADEditor(file){
     if(currentTool === 'select') return;
     isDrawing = true;
     const rect = canvas.getBoundingClientRect();
-    startX = e.clientX - rect.left;
-    startY = e.clientY - rect.top;
+    startX = snap(e.clientX - rect.left);
+    startY = snap(e.clientY - rect.top);
   });
 
   canvas.addEventListener('mousemove', (e) => {
     if(!isDrawing || currentTool === 'select') return;
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = snap(e.clientX - rect.left);
+    const y = snap(e.clientY - rect.top);
 
     if(currentTool === 'line'){
       drawShapes();
@@ -156,8 +173,8 @@ function openCADEditor(file){
     if(!isDrawing) return;
     isDrawing = false;
     const rect = canvas.getBoundingClientRect();
-    const endX = e.clientX - rect.left;
-    const endY = e.clientY - rect.top;
+    const endX = snap(e.clientX - rect.left);
+    const endY = snap(e.clientY - rect.top);
 
     if(currentTool === 'line'){
       shapes.push({ type: 'line', x1: startX, y1: startY, x2: endX, y2: endY });
@@ -169,6 +186,11 @@ function openCADEditor(file){
     } else if(currentTool === 'text'){
       const text = prompt('Enter text:', 'Text');
       if(text) shapes.push({ type: 'text', text, x: startX, y: startY });
+    } else if(currentTool === 'box3d'){
+      shapes.push({ type: 'box3d', x: Math.min(startX,endX), y: Math.min(startY,endY), w: Math.abs(endX-startX)||80, h: Math.abs(endY-startY)||60, d: 80 });
+      viewMode = 'iso';
+    } else if(currentTool === 'dimension'){
+      shapes.push({ type: 'dimension', x1: startX, y1: startY, x2: endX, y2: endY });
     }
     markUnsaved();
     drawShapes();
@@ -177,8 +199,8 @@ function openCADEditor(file){
   canvas.addEventListener('click', (e) => {
     if(currentTool !== 'select') return;
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = snap(e.clientX - rect.left);
+    const y = snap(e.clientY - rect.top);
     selectedShapeIdx = null;
     shapes.forEach((shape, idx) => {
       let isHit = false;
@@ -188,6 +210,10 @@ function openCADEditor(file){
         isHit = x >= shape.x && x <= shape.x + shape.w && y >= shape.y && y <= shape.y + shape.h;
       } else if(shape.type === 'circle'){
         isHit = Math.hypot(x - (shape.x + shape.r), y - (shape.y + shape.r)) <= shape.r;
+      } else if(shape.type === 'box3d'){
+        isHit = x >= shape.x && x <= shape.x + shape.w + shape.h*.55 && y >= shape.y-120 && y <= shape.y + shape.h;
+      } else if(shape.type === 'dimension'){
+        isHit = Math.hypot(x - shape.x1, y - shape.y1) < 8 || Math.hypot(x - shape.x2, y - shape.y2) < 8;
       }
       if(isHit) selectedShapeIdx = idx;
     });
@@ -204,7 +230,7 @@ function openCADEditor(file){
 
   function doSave(){
     file.name = titleInput.value.trim() || 'Untitled';
-    file.content = { shapes };
+    file.content = { shapes, snapToGrid, viewMode };
     upsertFile(file);
     saveDot.style.background = 'var(--success)';
     saveText.textContent = 'Saved';
@@ -213,7 +239,7 @@ function openCADEditor(file){
   function setTool(tool){
     currentTool = tool;
     shell.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-    shell.querySelector(`[data-tool="${tool}"]`).classList.add('active');
+    const btn = shell.querySelector(`[data-tool="${tool}"]`); if(btn) btn.classList.add('active');
   }
 
   shell.querySelector('#selectBtn').addEventListener('click', () => setTool('select'));
@@ -221,6 +247,11 @@ function openCADEditor(file){
   shell.querySelector('#rectBtn').addEventListener('click', () => setTool('rect'));
   shell.querySelector('#circleBtn').addEventListener('click', () => setTool('circle'));
   shell.querySelector('#textBtn').addEventListener('click', () => setTool('text'));
+  shell.querySelector('#box3dBtn').addEventListener('click', () => setTool('box3d'));
+  shell.querySelector('#dimBtn').addEventListener('click', () => setTool('dimension'));
+  shell.querySelector('#snapBtn').addEventListener('click', () => { snapToGrid = !snapToGrid; shell.querySelector('#snapBtn').textContent = snapToGrid ? '# Snap' : '# Free'; markUnsaved(); drawShapes(); });
+  shell.querySelector('#viewBtn').addEventListener('click', () => { viewMode = viewMode === 'iso' ? 'top' : 'iso'; drawShapes(); markUnsaved(); });
+  shell.querySelector('#extrudeBtn').addEventListener('click', () => { if(selectedShapeIdx !== null){ const s=shapes[selectedShapeIdx]; if(s.type==='rect') shapes[selectedShapeIdx] = { type:'box3d', x:s.x, y:s.y, w:s.w, h:s.h, d:80 }; else if(s.type==='box3d') s.d = (s.d||80)+20; viewMode='iso'; markUnsaved(); drawShapes(); } });
 
   shell.querySelector('#deleteBtn').addEventListener('click', () => {
     if(selectedShapeIdx !== null){
