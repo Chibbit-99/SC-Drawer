@@ -170,7 +170,7 @@ table.sheet-table th.sh{ background:#dbeafe !important; color:#1d4ed8 !important
 /* chart / find panels */
 #chartPanel{ position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:200; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
 #chartPanel.hidden{ display:none !important; }
-.chart-modal{ background:#fff; border-radius:14px; padding:28px; width:700px; max-width:96vw; max-height:92vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.18); }
+.chart-modal{ background:var(--bg-app); border-radius:14px; padding:28px; width:700px; max-width:96vw; max-height:92vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.18); }
 .chart-cfg{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
 .chart-cfg label{ font-size:12px; font-weight:600; color:#64748b; display:flex; flex-direction:column; gap:4px; }
 .chart-cfg input,.chart-cfg select{ padding:6px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:13px; font-family:inherit; background:#f8fafc; color:#0f172a; }
