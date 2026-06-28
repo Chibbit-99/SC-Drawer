@@ -92,6 +92,131 @@
   input,textarea,select{font-family:inherit;}
   ::selection{background:var(--sheet-tint);}
 
+  /* Global scrollbar styling - thin and themed */
+  ::-webkit-scrollbar{
+    width:8px;
+    height:8px;
+  }
+  ::-webkit-scrollbar-track{
+    background:var(--bg-app);
+  }
+  ::-webkit-scrollbar-thumb{
+    background:var(--border);
+    border-radius:4px;
+  }
+  ::-webkit-scrollbar-thumb:hover{
+    background:var(--text-muted);
+  }
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width:thin;
+    scrollbar-color:var(--border) var(--bg-app);
+  }
+
+  /* Fix dark mode for music editor elements */
+  .piano-keys{
+    background:var(--bg-app) !important;
+  }
+  .key{
+    border-bottom-color:var(--border) !important;
+    color:var(--text-muted) !important;
+  }
+  .key.black{
+    background:#1e293b !important;
+    color:#fff !important;
+  }
+  html[data-theme="dark"] .key.black{
+    background:#0f172a !important;
+  }
+  .key.white{
+    background:var(--bg-card) !important;
+    color:var(--text-muted) !important;
+  }
+  html[data-theme="dark"] .key.white{
+    background:#334155 !important;
+  }
+
+  /* Fix dark mode for grid and cells */
+  .grid-area{
+    background:var(--bg-card) !important;
+  }
+  .grid-row{
+    border-bottom-color:var(--border) !important;
+  }
+  .grid-cell{
+    border-right-color:var(--border) !important;
+  }
+  .sheet-table{
+    background:var(--bg-card) !important;
+  }
+  .sheet-table th{
+    background:var(--bg-app) !important;
+    color:var(--text-muted) !important;
+  }
+  .sheet-table td{
+    background:var(--bg-card) !important;
+    color:var(--text-main) !important;
+  }
+  table.sheet-table th, table.sheet-table td{
+    border-color:var(--border) !important;
+  }
+
+  /* Fix dark mode for formula bar and inputs */
+  .formula-bar{
+    background:var(--bg-card) !important;
+    color:var(--text-main) !important;
+  }
+  .formula-bar input{
+    background:var(--bg-app) !important;
+    color:var(--text-main) !important;
+    border-color:var(--border) !important;
+  }
+  .bpm-input{
+    background:var(--bg-app) !important;
+    color:var(--text-main) !important;
+    border-color:var(--border) !important;
+  }
+
+  /* Fix dark mode for piano roll and music grid */
+  .piano-roll{
+    background:var(--bg-card) !important;
+  }
+  .music-container{
+    background:var(--bg-app) !important;
+  }
+
+  /* Fix dark mode for timeline and video elements */
+  .video-timeline{
+    background:var(--bg-card) !important;
+    border-color:var(--border) !important;
+  }
+  .timeline-track{
+    background:transparent !important;
+  }
+  .add-clip-btn{
+    background:var(--border) !important;
+    color:var(--text-muted) !important;
+  }
+  .add-clip-btn:hover{
+    background:var(--primary) !important;
+    color:#fff !important;
+  }
+
+  /* Fix dark mode for CAD canvas */
+  .cad-canvas-wrap{
+    background:var(--bg-app) !important;
+  }
+  .cad-canvas{
+    background:var(--bg-card) !important;
+  }
+  /* Canvas drawing is handled in JS, so we style the canvas element itself */
+  #cadCanvas{
+    filter:invert(0);
+  }
+  html[data-theme="dark"] #cadCanvas{
+    filter:invert(0.95) hue-rotate(180deg);
+  }
+
   /* visually-hidden but accessible */
   .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;}
 
