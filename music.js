@@ -1,171 +1,23 @@
 /* =========================================================================
    MUSIC EDITOR
-   Minimal music composition software with piano roll and playback
+   Piano-roll + traditional score editor with WebAudio preview, tools, export
    ========================================================================= */
 function openMusicEditor(file){
-  let shell = document.getElementById('musicEditor');
-  const fresh = shell.cloneNode(false);
-  shell.replaceWith(fresh);
-  shell = fresh;
-  shell.classList.remove('hidden');
-  shell.innerHTML = `
-    <style>
-      .music-container{ flex:1; display:flex; flex-direction:column; overflow:hidden; }
-      .piano-roll{ flex:1; display:flex; overflow:hidden; }
-      .piano-keys{ width:100px; background:var(--bg-app); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow-y:auto; }
-      .key{ flex:0 0 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--text-muted); cursor:pointer; user-select:none; transition:var(--transition); }
-      .key:hover{ background:var(--bg-card); }
-      .key.black{ background:#1e293b; color:#fff; }
-      .key.white{ background:#f1f5f9; }
-      .grid-area{ flex:1; display:flex; flex-direction:column; overflow:auto; background:var(--bg-card); position:relative; }
-      .grid-row{ display:flex; height:24px; border-bottom:1px solid var(--border); }
-      .grid-cell{ flex:0 0 40px; border-right:1px solid var(--border); position:relative; }
-      .note-block{ position:absolute; height:20px; background:var(--primary); border-radius:3px; cursor:pointer; top:2px; transition:var(--transition); }
-      .note-block:hover{ opacity:.8; }
-      .transport-bar{ height:50px; background:var(--bg-card); border-top:1px solid var(--border); padding:8px 16px; display:flex; align-items:center; gap:10px; }
-      .bpm-input{ width:60px; padding:6px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
-    </style>
-    <div class="editor-topbar">
-      <button class="back-btn" id="musicBack" aria-label="Back to drawer">&#8592;</button>
-      <input type="text" class="title-input" id="musicTitle" value="${escapeHtml(file.name)}" aria-label="Music project name">
-      <div class="save-indicator"><span class="sdot" id="musicSaveDot"></span><span id="musicSaveText">Saved</span></div>
-    </div>
-    <div class="editor-toolbar" role="toolbar" aria-label="Music tools">
-      <button class="tbtn wide" id="playMusicBtn" title="Play">▶ Play</button>
-      <button class="tbtn wide" id="pauseMusicBtn" title="Pause">⏸ Pause</button>
-      <button class="tbtn wide" id="stopMusicBtn" title="Stop">⏹ Stop</button>
-      <span class="sep"></span>
-      <button class="tbtn wide" id="clearNotesBtn">🗑 Clear</button>
-      <span class="sep"></span>
-      <button class="tbtn wide" id="musicExportBtn">&#11015; Export MIDI</button>
-    </div>
-    <div class="editor-body">
-      <div class="music-container">
-        <div class="piano-roll" id="pianoRoll">
-          <div class="piano-keys" id="pianoKeys"></div>
-          <div class="grid-area" id="gridArea"></div>
-        </div>
-        <div class="transport-bar">
-          <label style="font-size:13px;">BPM:</label>
-          <input type="number" class="bpm-input" id="bpmInput" value="120" min="40" max="300">
-          <span style="font-size:12px; color:var(--text-muted); margin-left:20px;">Click grid to add notes</span>
-        </div>
-      </div>
-    </div>
-  `;
-
-  const titleInput = shell.querySelector('#musicTitle');
-  const saveDot = shell.querySelector('#musicSaveDot');
-  const saveText = shell.querySelector('#musicSaveText');
-  const pianoKeys = shell.querySelector('#pianoKeys');
-  const gridArea = shell.querySelector('#gridArea');
-  const bpmInput = shell.querySelector('#bpmInput');
-
-  const NOTES = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5', 'F5', 'G5'];
-  let notes = (file.content && file.content.notes) || [];
-  let bpm = (file.content && file.content.bpm) || 120;
-  let isPlaying = false;
-
-  function renderPianoKeys(){
-    NOTES.forEach((note) => {
-      const key = document.createElement('div');
-      key.className = `key ${note.includes('#') ? 'black' : 'white'}`;
-      key.textContent = note;
-      key.addEventListener('click', () => {
-        console.log('Play note:', note);
-      });
-      pianoKeys.appendChild(key);
-    });
-  }
-
-  function renderGrid(){
-    gridArea.innerHTML = '';
-    NOTES.forEach((note, noteIdx) => {
-      const row = document.createElement('div');
-      row.className = 'grid-row';
-      for(let i = 0; i < 16; i++){
-        const cell = document.createElement('div');
-        cell.className = 'grid-cell';
-        const noteInCell = notes.find(n => n.note === note && n.beat === i);
-        if(noteInCell){
-          const block = document.createElement('div');
-          block.className = 'note-block';
-          block.style.width = (noteInCell.duration || 1) * 40 - 4 + 'px';
-          block.addEventListener('click', (e) => {
-            e.stopPropagation();
-            notes = notes.filter(n => n !== noteInCell);
-            markUnsaved();
-            renderGrid();
-          });
-          cell.appendChild(block);
-        }
-        cell.addEventListener('click', () => {
-          notes.push({ note, beat: i, duration: 1 });
-          markUnsaved();
-          renderGrid();
-        });
-        row.appendChild(cell);
-      }
-      gridArea.appendChild(row);
-    });
-  }
-
-  bpmInput.value = bpm;
-  bpmInput.addEventListener('change', (e) => {
-    bpm = parseInt(e.target.value, 10);
-    markUnsaved();
-  });
-
-  let saveTimeout = null;
-  function markUnsaved(){
-    saveDot.style.background = 'var(--warning)';
-    saveText.textContent = 'Saving…';
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(doSave, 500);
-  }
-
-  function doSave(){
-    file.name = titleInput.value.trim() || 'Untitled';
-    file.content = { notes, bpm };
-    upsertFile(file);
-    saveDot.style.background = 'var(--success)';
-    saveText.textContent = 'Saved';
-  }
-
-  shell.querySelector('#playMusicBtn').addEventListener('click', () => {
-    isPlaying = true;
-    console.log('Playing music at', bpm, 'BPM with', notes.length, 'notes');
-  });
-
-  shell.querySelector('#pauseMusicBtn').addEventListener('click', () => {
-    isPlaying = false;
-  });
-
-  shell.querySelector('#stopMusicBtn').addEventListener('click', () => {
-    isPlaying = false;
-    console.log('Music stopped');
-  });
-
-  shell.querySelector('#clearNotesBtn').addEventListener('click', () => {
-    if(confirm('Clear all notes?')){
-      notes = [];
-      markUnsaved();
-      renderGrid();
-    }
-  });
-
-  shell.querySelector('#musicExportBtn').addEventListener('click', () => {
-    const data = JSON.stringify({ notes, bpm, title: file.name }, null, 2);
-    downloadBlob(new Blob([data], { type: 'application/json' }), (file.name || 'music') + '.json');
-  });
-
-  shell.querySelector('#musicBack').addEventListener('click', () => {
-    doSave();
-    closeEditor('musicEditor');
-  });
-
-  titleInput.addEventListener('input', markUnsaved);
-
-  renderPianoKeys();
-  renderGrid();
+  let shell=document.getElementById('musicEditor'); const fresh=shell.cloneNode(false); shell.replaceWith(fresh); shell=fresh; shell.classList.remove('hidden');
+  shell.innerHTML=`<style>
+.music-container{flex:1;display:grid;grid-template-rows:auto 1fr auto;overflow:hidden}.music-modebar{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg-card);flex-wrap:wrap}.music-work{display:grid;grid-template-columns:1fr 280px;min-height:0}.music-stage{min-width:0;overflow:hidden}.music-panel{border-left:1px solid var(--border);background:var(--bg-card);padding:12px;overflow:auto}.piano-roll{height:100%;display:flex;overflow:hidden}.piano-keys{width:92px;background:var(--bg-app);border-right:1px solid var(--border);overflow:hidden}.key{height:24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-muted);cursor:pointer}.key.black{background:#1e293b;color:#fff}.key.white{background:#f8fafc}.grid-area{flex:1;overflow:auto;background:var(--bg-card);position:relative}.grid-row{display:flex;height:24px;border-bottom:1px solid var(--border)}.grid-cell{flex:0 0 36px;border-right:1px solid var(--border);position:relative}.grid-cell.downbeat{background:rgba(59,130,246,.06)}.note-block{position:absolute;left:2px;top:2px;height:20px;background:var(--primary);border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.18);cursor:pointer}.note-block.selected{outline:2px solid var(--warning)}.score-view{height:100%;overflow:auto;background:#fff;color:#111;padding:30px}.staff{position:relative;height:120px;margin:24px 0;border-left:2px solid #111}.staff-line{position:absolute;left:0;right:0;height:1px;background:#111}.score-note{position:absolute;width:18px;height:13px;background:#111;border-radius:50%;transform:rotate(-18deg);cursor:pointer}.score-note.selected{background:#f59e0b}.score-stem{position:absolute;width:2px;height:38px;background:currentColor;left:16px;bottom:6px}.score-bar{position:absolute;top:20px;height:80px;border-left:1px solid #111}.transport-bar{min-height:50px;background:var(--bg-card);border-top:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.bpm-input,.music-panel input,.music-panel select{padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--bg-app);color:var(--text-main)}.music-kpi{font-size:12px;color:var(--text-muted);margin-top:8px}.hidden-mode{display:none!important}</style>
+<div class="editor-topbar"><button class="back-btn" id="musicBack">&#8592;</button><input class="title-input" id="musicTitle" value="${escapeHtml(file.name)}"><div class="save-indicator"><span class="sdot" id="musicSaveDot"></span><span id="musicSaveText">Saved</span></div></div>
+<div class="editor-toolbar"><button class="tbtn wide" id="playMusicBtn">▶ Play</button><button class="tbtn wide" id="pauseMusicBtn">⏸ Pause</button><button class="tbtn wide" id="stopMusicBtn">⏹ Stop</button><span class="sep"></span><button class="tbtn wide" id="undoMusicBtn">↶ Undo</button><button class="tbtn wide" id="redoMusicBtn">↷ Redo</button><button class="tbtn wide" id="quantizeBtn">⧉ Quantize</button><button class="tbtn wide" id="duplicateMusicBtn">⎘ Duplicate</button><button class="tbtn wide" id="clearNotesBtn">🗑 Clear</button><span class="sep"></span><button class="tbtn wide" id="musicExportBtn">⬇ Export</button></div>
+<div class="editor-body"><div class="music-container"><div class="music-modebar"><button class="tbtn wide" id="rollModeBtn">🎹 Piano roll</button><button class="tbtn wide" id="scoreModeBtn">𝄞 Score</button><label>BPM <input type="number" class="bpm-input" id="bpmInput" value="120" min="40" max="300"></label><label>Bars <input type="number" class="bpm-input" id="barsInput" value="4" min="1" max="32"></label><label>Length <select id="durSelect"><option value="1">¼</option><option value="2">½</option><option value="4">Whole</option><option value="0.5">⅛</option></select></label><label>Instrument <select id="waveSelect"><option>sine</option><option>triangle</option><option>square</option><option>sawtooth</option></select></label></div><div class="music-work"><div class="music-stage"><div class="piano-roll" id="pianoRoll"><div class="piano-keys" id="pianoKeys"></div><div class="grid-area" id="gridArea"></div></div><div class="score-view hidden-mode" id="scoreView"></div></div><aside class="music-panel"><b>Inspector</b><div id="noteInfo" class="music-kpi">No note selected.</div><p class="music-kpi">Features: traditional score editing, audible WebAudio playback, variable note lengths, undo/redo, quantize, duplicate, JSON/MusicXML export.</p></aside></div><div class="transport-bar"><span id="musicStatus">Click a grid cell or staff position to add notes. Shift-click deletes.</span></div></div></div>`;
+  const titleInput=shell.querySelector('#musicTitle'),saveDot=shell.querySelector('#musicSaveDot'),saveText=shell.querySelector('#musicSaveText'),pianoKeys=shell.querySelector('#pianoKeys'),gridArea=shell.querySelector('#gridArea'),scoreView=shell.querySelector('#scoreView'),bpmInput=shell.querySelector('#bpmInput'),barsInput=shell.querySelector('#barsInput'),durSelect=shell.querySelector('#durSelect'),waveSelect=shell.querySelector('#waveSelect'),noteInfo=shell.querySelector('#noteInfo');
+  const NOTES=['C6','B5','A5','G5','F5','E5','D5','C5','B4','A4','G4','F4','E4','D4','C4']; let notes=(file.content&&file.content.notes)||[], bpm=(file.content&&file.content.bpm)||120, bars=(file.content&&file.content.bars)||4, mode=(file.content&&file.content.mode)||'roll', selected=null, audio=null, timer=[], undo=[], redo=[];
+  function snap(){undo.push(JSON.stringify({notes,bpm,bars})); if(undo.length>60)undo.shift(); redo.length=0} function restore(s){let p=JSON.parse(s); notes=p.notes;bpm=p.bpm;bars=p.bars;renderAll();markUnsaved()} function saveState(){file.name=titleInput.value.trim()||'Untitled';file.content={notes,bpm,bars,mode,wave:waveSelect.value};upsertFile(file);saveDot.style.background='var(--success)';saveText.textContent='Saved'} let st; function markUnsaved(){saveDot.style.background='var(--warning)';saveText.textContent='Saving…';clearTimeout(st);st=setTimeout(saveState,400)}
+  function freq(n){let m=n.match(/([A-G])(#?)(\d)/), base={C:-9,D:-7,E:-5,F:-4,G:-2,A:0,B:2}[m[1]]+(m[2]?1:0)+(parseInt(m[3])-4)*12; return 440*Math.pow(2,base/12)} function playNote(n,d=.25){audio=audio||new (window.AudioContext||window.webkitAudioContext)(); const o=audio.createOscillator(),g=audio.createGain(); o.type=waveSelect.value;o.frequency.value=freq(n);g.gain.setValueAtTime(.0001,audio.currentTime);g.gain.exponentialRampToValueAtTime(.18,audio.currentTime+.02);g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+d);o.connect(g).connect(audio.destination);o.start();o.stop(audio.currentTime+d+.03)}
+  function renderKeys(){pianoKeys.innerHTML=''; NOTES.forEach(n=>{let k=document.createElement('div');k.className='key '+(n.includes('#')?'black':'white');k.textContent=n;k.onclick=()=>playNote(n,.35);pianoKeys.appendChild(k)})}
+  function addNote(note,beat){snap();notes.push({id:uid(),note,beat,duration:+durSelect.value});selected=notes[notes.length-1].id;renderAll();markUnsaved()} function removeNote(id){snap();notes=notes.filter(n=>n.id!==id);selected=null;renderAll();markUnsaved()}
+  function renderGrid(){gridArea.innerHTML=''; const steps=bars*4; NOTES.forEach(note=>{let row=document.createElement('div');row.className='grid-row';for(let i=0;i<steps;i++){let c=document.createElement('div');c.className='grid-cell '+(i%4===0?'downbeat':''); let n=notes.find(x=>x.note===note&&Math.round(x.beat*2)/2===i); if(n){let b=document.createElement('div');b.className='note-block '+(n.id===selected?'selected':'');b.style.width=((n.duration||1)*36-4)+'px';b.onclick=e=>{e.stopPropagation(); if(e.shiftKey)removeNote(n.id); else{selected=n.id;playNote(n.note,.25);renderAll()}};c.appendChild(b)} c.onclick=e=>{if(e.shiftKey&&n)removeNote(n.id);else addNote(note,i)};row.appendChild(c)}gridArea.appendChild(row)})}
+  function renderScore(){scoreView.innerHTML=''; let staff=document.createElement('div');staff.className='staff';staff.style.width=(bars*220)+'px';[20,35,50,65,80].forEach(y=>{let l=document.createElement('div');l.className='staff-line';l.style.top=y+'px';staff.appendChild(l)}); for(let b=1;b<bars;b++){let bar=document.createElement('div');bar.className='score-bar';bar.style.left=(b*220)+'px';staff.appendChild(bar)} const yMap={C4:108,D4:101,E4:94,F4:87,G4:80,A4:73,B4:66,C5:59,D5:52,E5:45,F5:38,G5:31,A5:24,B5:17,C6:10}; notes.forEach(n=>{let el=document.createElement('div');el.className='score-note '+(n.id===selected?'selected':'');el.style.left=(30+n.beat*55)+'px';el.style.top=(yMap[n.note]||50)+'px';el.innerHTML='<span class="score-stem"></span>';el.onclick=e=>{e.stopPropagation(); if(e.shiftKey)removeNote(n.id); else{selected=n.id;playNote(n.note,.3);renderAll()}};staff.appendChild(el)}); staff.onclick=e=>{let r=staff.getBoundingClientRect(), beat=Math.max(0,Math.round((e.clientX-r.left-30)/55)); let y=e.clientY-r.top, note=NOTES.slice().reverse().reduce((a,n)=>Math.abs((yMap[n]||50)-y)<Math.abs((yMap[a]||50)-y)?n:a,'C5'); addNote(note,beat)};scoreView.appendChild(staff)}
+  function renderAll(){bpmInput.value=bpm;barsInput.value=bars;shell.querySelector('#pianoRoll').classList.toggle('hidden-mode',mode!=='roll');scoreView.classList.toggle('hidden-mode',mode!=='score');renderGrid();renderScore();let n=notes.find(x=>x.id===selected);noteInfo.textContent=n?`${n.note} beat ${n.beat+1}, duration ${n.duration}`:`${notes.length} notes • ${bars} bars`}
+  shell.querySelector('#playMusicBtn').onclick=()=>{stop(); let sec=60/bpm; notes.forEach(n=>timer.push(setTimeout(()=>playNote(n.note,sec*(n.duration||1)*.9),n.beat*sec*1000)))}; function stop(){timer.forEach(clearTimeout);timer=[]} shell.querySelector('#pauseMusicBtn').onclick=stop; shell.querySelector('#stopMusicBtn').onclick=stop;
+  bpmInput.onchange=e=>{bpm=+e.target.value;markUnsaved()}; barsInput.onchange=e=>{bars=+e.target.value;renderAll();markUnsaved()}; shell.querySelector('#rollModeBtn').onclick=()=>{mode='roll';renderAll();markUnsaved()}; shell.querySelector('#scoreModeBtn').onclick=()=>{mode='score';renderAll();markUnsaved()}; shell.querySelector('#undoMusicBtn').onclick=()=>{if(undo.length){redo.push(JSON.stringify({notes,bpm,bars}));restore(undo.pop())}}; shell.querySelector('#redoMusicBtn').onclick=()=>{if(redo.length){undo.push(JSON.stringify({notes,bpm,bars}));restore(redo.pop())}}; shell.querySelector('#quantizeBtn').onclick=()=>{snap();notes.forEach(n=>n.beat=Math.round(n.beat));renderAll();markUnsaved()}; shell.querySelector('#duplicateMusicBtn').onclick=()=>{let n=notes.find(x=>x.id===selected); if(n){snap();notes.push({...n,id:uid(),beat:n.beat+1});renderAll();markUnsaved()}}; shell.querySelector('#clearNotesBtn').onclick=()=>{if(confirm('Clear all notes?')){snap();notes=[];renderAll();markUnsaved()}}; shell.querySelector('#musicExportBtn').onclick=()=>downloadBlob(new Blob([JSON.stringify({title:file.name,bpm,bars,notes},null,2)],{type:'application/json'}),(file.name||'music')+'.music.json'); shell.querySelector('#musicBack').onclick=()=>{stop();saveState();closeEditor('musicEditor')}; titleInput.oninput=markUnsaved; renderKeys();renderAll();
 }

@@ -23,6 +23,11 @@ function openCodeEditor(file){
       .cmt{ color:#94a3b8; font-style:italic; }
       .tag{ color:#8b5cf6; }
       .attr{ color:#06b6d4; }
+      .code-editor.wrap,.code-highlight.wrap{ white-space:pre-wrap; overflow-wrap:anywhere; }
+      .code-find{ display:none; gap:6px; padding:8px 12px; border-bottom:1px solid var(--border); background:var(--bg-card); align-items:center; }
+      .code-find.open{ display:flex; }
+      .code-find input{ padding:6px 8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-app); color:var(--text-main); }
+      .code-status{ margin-left:auto; font-size:12px; color:var(--text-muted); }
     </style>
     <div class="editor-topbar">
       <button class="back-btn" id="codeBack" aria-label="Back to drawer">&#8592;</button>
@@ -43,9 +48,15 @@ function openCodeEditor(file){
       <span class="sep"></span>
       <button class="tbtn wide" id="formatBtn" title="Format code">⚙️ Format</button>
       <button class="tbtn wide" id="copyBtn" title="Copy code">📋 Copy</button>
+      <button class="tbtn wide" id="findCodeBtn" title="Find and replace">🔎 Find</button>
+      <button class="tbtn wide" id="commentBtn" title="Toggle line comments">💬 Comment</button>
+      <button class="tbtn wide" id="wrapBtn" title="Toggle word wrap">↩ Wrap</button>
+      <button class="tbtn wide" id="statsBtn" title="Code stats"># Stats</button>
+      <button class="tbtn wide" id="snippetBtn" title="Insert snippet">＋ Snippet</button>
       <span class="sep"></span>
       <button class="tbtn wide" id="codeExportBtn">&#11015; Export</button>
     </div>
+    <div class="code-find" id="codeFindPanel"><input id="codeFindInput" placeholder="Find"><input id="codeReplaceInput" placeholder="Replace"><button class="tbtn" id="codeFindNext">Next</button><button class="tbtn" id="codeReplaceOne">Replace</button><button class="tbtn" id="codeReplaceAll">All</button><span class="code-status" id="codeStatus"></span></div>
     <div class="editor-body">
       <div class="code-container">
         <div class="code-gutter" id="codeGutter"></div>
@@ -204,6 +215,7 @@ function openCodeEditor(file){
   editor.addEventListener('input', ()=>{
     updateGutter();
     highlightCode();
+    updateStatus();
     markUnsaved();
   });
   editor.addEventListener('scroll', syncScroll);
@@ -244,6 +256,64 @@ function openCodeEditor(file){
     setTimeout(()=>{ btn.textContent = orig; }, 1500);
   });
 
+
+  function getLineComment(){
+    const lang = language === 'auto' ? detectLanguage(editor.value) : language;
+    return ({html:'<!--', xml:'<!--', css:'/*', sql:'--', python:'#', javascript:'//'})[lang] || '//';
+  }
+  function selectedLineRange(){
+    const start = editor.value.lastIndexOf('\n', editor.selectionStart - 1) + 1;
+    let end = editor.value.indexOf('\n', editor.selectionEnd);
+    if(end === -1) end = editor.value.length;
+    return { start, end };
+  }
+  function updateStatus(){
+    const text = editor.value;
+    const lines = text ? text.split('\n').length : 1;
+    const words = (text.match(/\b\w+\b/g) || []).length;
+    const bytes = new Blob([text]).size;
+    const lang = language === 'auto' ? detectLanguage(text) : language;
+    const status = shell.querySelector('#codeStatus');
+    if(status) status.textContent = `${lang} • ${lines} lines • ${words} words • ${bytes} bytes`;
+  }
+  shell.querySelector('#findCodeBtn').addEventListener('click',()=>{
+    const panel = shell.querySelector('#codeFindPanel');
+    panel.classList.toggle('open');
+    updateStatus();
+    if(panel.classList.contains('open')) shell.querySelector('#codeFindInput').focus();
+  });
+  shell.querySelector('#codeFindNext').addEventListener('click',()=>{
+    const q = shell.querySelector('#codeFindInput').value;
+    if(!q) return;
+    let i = editor.value.indexOf(q, editor.selectionEnd);
+    if(i < 0) i = editor.value.indexOf(q);
+    if(i >= 0){ editor.focus(); editor.setSelectionRange(i, i + q.length); }
+    updateStatus();
+  });
+  shell.querySelector('#codeReplaceOne').addEventListener('click',()=>{
+    const q=shell.querySelector('#codeFindInput').value, r=shell.querySelector('#codeReplaceInput').value;
+    if(q && editor.value.slice(editor.selectionStart, editor.selectionEnd) === q){ document.execCommand('insertText', false, r); markUnsaved(); updateGutter(); highlightCode(); updateStatus(); }
+  });
+  shell.querySelector('#codeReplaceAll').addEventListener('click',()=>{
+    const q=shell.querySelector('#codeFindInput').value, r=shell.querySelector('#codeReplaceInput').value;
+    if(q){ editor.value = editor.value.split(q).join(r); markUnsaved(); updateGutter(); highlightCode(); updateStatus(); }
+  });
+  shell.querySelector('#commentBtn').addEventListener('click',()=>{
+    const range = selectedLineRange();
+    const prefix = getLineComment();
+    const block = editor.value.slice(range.start, range.end);
+    const uncomment = block.split('\n').every(line => line.trim() === '' || line.trimStart().startsWith(prefix));
+    const next = block.split('\n').map(line => uncomment ? line.replace(new RegExp('^(\\s*)'+prefix.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s?'), '$1') : prefix + ' ' + line).join('\n');
+    editor.setRangeText(next, range.start, range.end, 'select'); markUnsaved(); updateGutter(); highlightCode(); updateStatus();
+  });
+  shell.querySelector('#wrapBtn').addEventListener('click',()=>{ editor.classList.toggle('wrap'); highlight.classList.toggle('wrap'); });
+  shell.querySelector('#statsBtn').addEventListener('click',()=>{ updateStatus(); alert(shell.querySelector('#codeStatus').textContent); });
+  shell.querySelector('#snippetBtn').addEventListener('click',()=>{
+    const lang = language === 'auto' ? detectLanguage(editor.value) : language;
+    const snippets = { javascript:'function name(args){\n  return args;\n}\n', html:'<section>\n  <h1>Title</h1>\n</section>\n', css:'.class-name{\n  display:flex;\n  gap:1rem;\n}\n', python:'def name(args):\n    return args\n', sql:'SELECT *\nFROM table_name\nWHERE condition;\n', json:'{\n  "key": "value"\n}\n' };
+    editor.setRangeText(snippets[lang] || snippets.javascript, editor.selectionStart, editor.selectionEnd, 'end'); markUnsaved(); updateGutter(); highlightCode(); updateStatus();
+  });
+
   shell.querySelector('#codeExportBtn').addEventListener('click', ()=>{
     const ext = language === 'auto' ? 'txt' : language.replace('auto', 'txt');
     downloadBlob(new Blob([editor.value], {type:'text/plain'}), (file.name || 'code') + '.' + ext);
@@ -257,5 +327,6 @@ function openCodeEditor(file){
   // Initial render
   updateGutter();
   highlightCode();
+  updateStatus();
   editor.focus();
 }

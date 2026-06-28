@@ -1,178 +1,23 @@
 /* =========================================================================
    VIDEO EDITOR
-   Minimal video editor with timeline, basic playback, and export
+   Storyboard/timeline editor with real preview, clip inspector and effects
    ========================================================================= */
 function openVideoEditor(file){
-  let shell = document.getElementById('videoEditor');
-  const fresh = shell.cloneNode(false);
-  shell.replaceWith(fresh);
-  shell = fresh;
-  shell.classList.remove('hidden');
-  shell.innerHTML = `
-    <style>
-      .video-container{ flex:1; display:flex; flex-direction:column; overflow:hidden; }
-      .video-viewport{ flex:1; background:#000; display:flex; align-items:center; justify-content:center; overflow:auto; }
-      .video-canvas{ width:100%; height:100%; max-width:960px; max-height:540px; background:#222; display:flex; align-items:center; justify-content:center; color:#999; font-size:14px; }
-      .video-timeline{ height:120px; background:var(--bg-card); border-top:1px solid var(--border); padding:10px; overflow-x:auto; overflow-y:hidden; }
-      .timeline-track{ display:flex; gap:4px; height:100%; align-items:stretch; min-width:min-content; }
-      .timeline-clip{ flex:0 0 80px; background:var(--primary); border-radius:4px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px; text-align:center; padding:4px; box-sizing:border-box; transition:var(--transition); }
-      .timeline-clip:hover{ opacity:.8; }
-      .timeline-clip.selected{ border:2px solid var(--warning); }
-      .add-clip-btn{ flex:0 0 60px; background:var(--border); border-radius:4px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted); font-size:20px; transition:var(--transition); }
-      .add-clip-btn:hover{ background:var(--primary); color:#fff; }
-    </style>
-    <div class="editor-topbar">
-      <button class="back-btn" id="videoBack" aria-label="Back to drawer">&#8592;</button>
-      <input type="text" class="title-input" id="videoTitle" value="${escapeHtml(file.name)}" aria-label="Video project name">
-      <div class="save-indicator"><span class="sdot" id="videoSaveDot"></span><span id="videoSaveText">Saved</span></div>
-    </div>
-    <div class="editor-toolbar" role="toolbar" aria-label="Video tools">
-      <button class="tbtn wide" id="playBtn" title="Play">▶ Play</button>
-      <button class="tbtn wide" id="pauseBtn" title="Pause">⏸ Pause</button>
-      <span class="sep"></span>
-      <button class="tbtn wide" id="addVideoBtn">+ Video</button>
-      <button class="tbtn wide" id="addAudioBtn">+ Audio</button>
-      <button class="tbtn wide" id="addTextBtn">+ Text</button>
-      <span class="sep"></span>
-      <button class="tbtn wide" id="videoExportBtn">&#11015; Export</button>
-    </div>
-    <div class="editor-body">
-      <div class="video-container">
-        <div class="video-viewport">
-          <div class="video-canvas" id="videoCanvas">
-            <span id="canvasText">No clips added yet</span>
-          </div>
-        </div>
-        <div class="video-timeline" id="videoTimeline">
-          <div class="timeline-track" id="timelineTrack">
-            <div class="add-clip-btn" id="addClipBtn">+</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  const titleInput = shell.querySelector('#videoTitle');
-  const saveDot = shell.querySelector('#videoSaveDot');
-  const saveText = shell.querySelector('#videoSaveText');
-  const canvas = shell.querySelector('#videoCanvas');
-  const timelineTrack = shell.querySelector('#timelineTrack');
-  const canvasText = shell.querySelector('#canvasText');
-
-  let clips = (file.content && file.content.clips) || [];
-  let selectedClipIdx = null;
-  let isPlaying = false;
-  let playheadTime = 0;
-
-  function loadClips(){
-    clips.forEach((clip, idx) => {
-      renderClip(clip, idx);
-    });
-  }
-
-  function renderClip(clip, idx){
-    const el = document.createElement('div');
-    el.className = 'timeline-clip' + (idx === selectedClipIdx ? ' selected' : '');
-    el.textContent = clip.type.slice(0, 1).toUpperCase();
-    el.addEventListener('click', () => {
-      selectedClipIdx = idx;
-      updateClipSelection();
-    });
-    const deleteBtn = document.createElement('button');
-    deleteBtn.textContent = '✕';
-    deleteBtn.style.cssText = 'position:absolute; top:2px; right:2px; width:16px; height:16px; border:none; background:rgba(0,0,0,0.5); color:#fff; cursor:pointer; border-radius:2px; font-size:10px;';
-    deleteBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      clips.splice(idx, 1);
-      markUnsaved();
-      rebuildTimeline();
-    });
-    el.style.position = 'relative';
-    el.appendChild(deleteBtn);
-    const addBtn = timelineTrack.querySelector('.add-clip-btn');
-    timelineTrack.insertBefore(el, addBtn);
-  }
-
-  function updateClipSelection(){
-    timelineTrack.querySelectorAll('.timeline-clip').forEach((el, i) => {
-      el.classList.toggle('selected', i === selectedClipIdx);
-    });
-  }
-
-  function rebuildTimeline(){
-    timelineTrack.innerHTML = '';
-    clips.forEach((clip, idx) => renderClip(clip, idx));
-    const addBtn = document.createElement('div');
-    addBtn.className = 'add-clip-btn';
-    addBtn.id = 'addClipBtn';
-    addBtn.textContent = '+';
-    addBtn.addEventListener('click', () => shell.querySelector('#addVideoBtn').click());
-    timelineTrack.appendChild(addBtn);
-    updateCanvasText();
-  }
-
-  function updateCanvasText(){
-    if(clips.length === 0) canvasText.textContent = 'No clips added yet';
-    else canvasText.textContent = `${clips.length} clip${clips.length > 1 ? 's' : ''} • Click play to preview`;
-  }
-
-  let saveTimeout = null;
-  function markUnsaved(){
-    saveDot.style.background = 'var(--warning)';
-    saveText.textContent = 'Saving…';
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(doSave, 500);
-  }
-
-  function doSave(){
-    file.name = titleInput.value.trim() || 'Untitled';
-    file.content = { clips };
-    upsertFile(file);
-    saveDot.style.background = 'var(--success)';
-    saveText.textContent = 'Saved';
-  }
-
-  shell.querySelector('#playBtn').addEventListener('click', () => {
-    isPlaying = true;
-    canvasText.textContent = '▶ Playing... (preview)';
-    setTimeout(() => { isPlaying = false; canvasText.textContent = clips.length ? `${clips.length} clip${clips.length > 1 ? 's' : ''}` : 'No clips'; }, 2000);
-  });
-
-  shell.querySelector('#pauseBtn').addEventListener('click', () => {
-    isPlaying = false;
-    updateCanvasText();
-  });
-
-  shell.querySelector('#addVideoBtn').addEventListener('click', () => {
-    clips.push({ type: 'video', name: `Video ${clips.length + 1}` });
-    markUnsaved();
-    rebuildTimeline();
-  });
-
-  shell.querySelector('#addAudioBtn').addEventListener('click', () => {
-    clips.push({ type: 'audio', name: `Audio ${clips.length + 1}` });
-    markUnsaved();
-    rebuildTimeline();
-  });
-
-  shell.querySelector('#addTextBtn').addEventListener('click', () => {
-    clips.push({ type: 'text', name: `Text ${clips.length + 1}` });
-    markUnsaved();
-    rebuildTimeline();
-  });
-
-  shell.querySelector('#videoExportBtn').addEventListener('click', () => {
-    const data = JSON.stringify({ clips, title: file.name }, null, 2);
-    downloadBlob(new Blob([data], { type: 'application/json' }), (file.name || 'video') + '.json');
-  });
-
-  shell.querySelector('#videoBack').addEventListener('click', () => {
-    doSave();
-    closeEditor('videoEditor');
-  });
-
-  titleInput.addEventListener('input', markUnsaved);
-
-  loadClips();
-  updateCanvasText();
+  let shell=document.getElementById('videoEditor'); const fresh=shell.cloneNode(false); shell.replaceWith(fresh); shell=fresh; shell.classList.remove('hidden');
+  shell.innerHTML=`<style>.video-container{flex:1;display:grid;grid-template-rows:1fr 150px;overflow:hidden}.video-main{display:grid;grid-template-columns:1fr 300px;min-height:0}.video-viewport{background:#050505;display:flex;align-items:center;justify-content:center;overflow:auto;padding:18px}.video-canvas{width:960px;height:540px;max-width:100%;max-height:100%;background:#111;position:relative;overflow:hidden;color:#fff;box-shadow:0 20px 60px rgba(0,0,0,.35)}.v-layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px}.v-title{font-size:56px;font-weight:800;text-shadow:0 3px 16px #000}.video-inspector{border-left:1px solid var(--border);background:var(--bg-card);padding:12px;overflow:auto}.video-inspector label{display:flex;flex-direction:column;gap:4px;margin:8px 0;font-size:12px;color:var(--text-muted)}.video-inspector input,.video-inspector select,textarea{padding:7px 8px;border:1px solid var(--border);border-radius:7px;background:var(--bg-app);color:var(--text-main)}.video-timeline{background:var(--bg-card);border-top:1px solid var(--border);padding:12px;overflow:auto}.ruler{height:18px;position:relative;font-size:10px;color:var(--text-muted)}.playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--danger);z-index:3}.timeline-track{position:relative;height:96px;min-width:900px;background:linear-gradient(90deg,rgba(148,163,184,.18) 1px,transparent 1px);background-size:60px 100%;border-radius:8px}.timeline-clip{position:absolute;top:15px;height:64px;border-radius:8px;color:#fff;padding:7px;font-size:12px;cursor:pointer;overflow:hidden;border:2px solid transparent}.timeline-clip.selected{border-color:var(--warning)}.clip-video{background:#3b82f6}.clip-audio{background:#10b981;top:84px;height:30px}.clip-text{background:#8b5cf6}.clip-image{background:#f59e0b}.clip-color{background:#ec4899}</style>
+<div class="editor-topbar"><button class="back-btn" id="videoBack">&#8592;</button><input class="title-input" id="videoTitle" value="${escapeHtml(file.name)}"><div class="save-indicator"><span class="sdot" id="videoSaveDot"></span><span id="videoSaveText">Saved</span></div></div>
+<div class="editor-toolbar"><button class="tbtn wide" id="playBtn">▶ Play</button><button class="tbtn wide" id="pauseBtn">⏸ Pause</button><button class="tbtn wide" id="stopBtn">⏹ Stop</button><span class="sep"></span><button class="tbtn wide" id="addVideoBtn">+ Scene</button><button class="tbtn wide" id="addImageBtn">+ Image</button><button class="tbtn wide" id="addAudioBtn">+ Audio</button><button class="tbtn wide" id="addTextBtn">+ Text</button><button class="tbtn wide" id="splitBtn">✂ Split</button><button class="tbtn wide" id="deleteClipBtn">🗑 Delete</button><span class="sep"></span><button class="tbtn wide" id="videoExportBtn">⬇ Export</button></div>
+<div class="editor-body"><div class="video-container"><div class="video-main"><div class="video-viewport"><div class="video-canvas" id="videoCanvas"><div class="v-layer"><div class="v-title" id="canvasText">No clips added yet</div></div></div></div><aside class="video-inspector"><b>Clip Inspector</b><div id="clipEmpty">Select a clip to edit timing, text, color, transition, and effects.</div><div id="clipForm" style="display:none"><label>Name<input id="clipName"></label><label>Start (s)<input id="clipStart" type="number" min="0" step=".1"></label><label>Duration (s)<input id="clipDur" type="number" min=".5" step=".1"></label><label>Text / Notes<textarea id="clipText" rows="3"></textarea></label><label>Color<input id="clipColor" type="color"></label><label>Transition<select id="clipTransition"><option>cut</option><option>fade</option><option>slide</option><option>zoom</option></select></label><label>Effect<select id="clipEffect"><option>none</option><option>grayscale</option><option>sepia</option><option>blur</option><option>vignette</option></select></label></div></aside></div><div class="video-timeline"><div class="ruler" id="ruler"></div><div class="timeline-track" id="timelineTrack"><div class="playhead" id="playhead"></div></div></div></div></div>`;
+  const titleInput=shell.querySelector('#videoTitle'),saveDot=shell.querySelector('#videoSaveDot'),saveText=shell.querySelector('#videoSaveText'),track=shell.querySelector('#timelineTrack'),playhead=shell.querySelector('#playhead'),canvas=shell.querySelector('#videoCanvas'),canvasText=shell.querySelector('#canvasText'),form=shell.querySelector('#clipForm'),empty=shell.querySelector('#clipEmpty');
+  let clips=(file.content&&file.content.clips)||[], selected=null, playing=false, t=0, raf=0, saveTimer=0; const px=60;
+  function duration(){return Math.max(10,...clips.map(c=>(+c.start||0)+(+c.duration||2)))} function colorFor(type){return {video:'#3b82f6',audio:'#10b981',text:'#8b5cf6',image:'#f59e0b',color:'#ec4899'}[type]||'#64748b'}
+  function markUnsaved(){saveDot.style.background='var(--warning)';saveText.textContent='Saving…';clearTimeout(saveTimer);saveTimer=setTimeout(save,400)} function save(){file.name=titleInput.value.trim()||'Untitled';file.content={clips};upsertFile(file);saveDot.style.background='var(--success)';saveText.textContent='Saved'}
+  function addClip(type){let end=clips.reduce((m,c)=>Math.max(m,(+c.start||0)+(+c.duration||2)),0); clips.push({id:uid(),type,name:type[0].toUpperCase()+type.slice(1)+' '+(clips.length+1),start:end,duration:type==='audio'?4:3,text:type==='text'?'Edit this title':type==='color'?'Color card':'',color:colorFor(type),transition:'cut',effect:'none'}); selected=clips.at(-1).id; render(); markUnsaved()}
+  function render(){track.style.width=(duration()*px+40)+'px'; track.querySelectorAll('.timeline-clip').forEach(e=>e.remove()); clips.forEach(c=>{let el=document.createElement('div');el.className='timeline-clip clip-'+c.type+(c.id===selected?' selected':'');el.style.left=(c.start*px)+'px';el.style.width=(c.duration*px)+'px';el.style.background=c.color||colorFor(c.type);el.textContent=`${c.name} (${c.duration}s)`;el.onclick=()=>{selected=c.id;render()};track.appendChild(el)}); updateInspector(); updatePreview()}
+  function activeClips(){return clips.filter(c=>t>=c.start&&t<c.start+c.duration).sort((a,b)=>['color','video','image','text','audio'].indexOf(a.type)-['color','video','image','text','audio'].indexOf(b.type))}
+  function updatePreview(){playhead.style.left=(t*px)+'px'; let active=activeClips().filter(c=>c.type!=='audio'); canvas.innerHTML=''; if(!active.length){canvas.innerHTML=`<div class="v-layer"><div class="v-title" id="canvasText">${clips.length?'Gap at '+t.toFixed(1)+'s':'No clips added yet'}</div></div>`;return} active.forEach(c=>{let layer=document.createElement('div');layer.className='v-layer';let filter={none:'',grayscale:'grayscale(1)',sepia:'sepia(1)',blur:'blur(3px)',vignette:'contrast(.9) brightness(.8)'}[c.effect]||'';layer.style.background=c.type==='text'?'transparent':(c.color||colorFor(c.type));layer.style.filter=filter;layer.innerHTML=`<div class="v-title">${escapeHtml(c.text||c.name)}</div>`;canvas.appendChild(layer)})}
+  function updateInspector(){let c=clips.find(x=>x.id===selected); form.style.display=c?'block':'none'; empty.style.display=c?'none':'block'; if(!c)return; ['Name','Start','Dur','Text','Color','Transition','Effect'].forEach(k=>{let el=shell.querySelector('#clip'+k); if(el) el.value=c[k.toLowerCase()]??''})}
+  ['Name','Start','Dur','Text','Color','Transition','Effect'].forEach(k=>{let el; setTimeout(()=>{el=shell.querySelector('#clip'+k); if(el)el.oninput=()=>{let c=clips.find(x=>x.id===selected); if(!c)return; let prop=k==='Dur'?'duration':k.toLowerCase(); c[prop]=(prop==='start'||prop==='duration')?+el.value:el.value; render(); markUnsaved()}},0)});
+  function loop(ts){if(!playing)return; if(!loop.last)loop.last=ts; t+=(ts-loop.last)/1000; loop.last=ts; if(t>duration()){playing=false;t=0;loop.last=0} updatePreview(); raf=requestAnimationFrame(loop)}
+  shell.querySelector('#playBtn').onclick=()=>{playing=true;loop.last=0;raf=requestAnimationFrame(loop)}; shell.querySelector('#pauseBtn').onclick=()=>{playing=false;cancelAnimationFrame(raf)}; shell.querySelector('#stopBtn').onclick=()=>{playing=false;t=0;updatePreview()}; shell.querySelector('#addVideoBtn').onclick=()=>addClip('video'); shell.querySelector('#addImageBtn').onclick=()=>addClip('image'); shell.querySelector('#addAudioBtn').onclick=()=>addClip('audio'); shell.querySelector('#addTextBtn').onclick=()=>addClip('text'); shell.querySelector('#deleteClipBtn').onclick=()=>{clips=clips.filter(c=>c.id!==selected);selected=null;render();markUnsaved()}; shell.querySelector('#splitBtn').onclick=()=>{let c=clips.find(x=>x.id===selected); if(c&&c.duration>1){let half=c.duration/2;c.duration=half;clips.push({...c,id:uid(),name:c.name+' copy',start:c.start+half,duration:half});render();markUnsaved()}}; shell.querySelector('#videoExportBtn').onclick=()=>downloadBlob(new Blob([JSON.stringify({title:file.name,duration:duration(),clips},null,2)],{type:'application/json'}),(file.name||'video')+'.storyboard.json'); shell.querySelector('#videoBack').onclick=()=>{save();closeEditor('videoEditor')}; titleInput.oninput=markUnsaved; track.onclick=e=>{if(e.target===track){t=Math.max(0,(e.offsetX/px));updatePreview()}}; render();
 }
