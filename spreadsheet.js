@@ -126,12 +126,12 @@ table.sheet-table th.sh{ background:#dbeafe !important; color:#1d4ed8 !important
 .cell-editor-wrap{ position:absolute; inset:0; z-index:10; }
 .cell-editor{
   width:100%; height:100%; min-height:26px; border:none; padding:0 6px;
-  font-size:13px; font-family:system-ui,sans-serif; background:#fff;
+  font-size:13px; font-family:system-ui,sans-serif; background:var(--bg-app);
   outline:2px solid #2563eb; outline-offset:-1px; box-sizing:border-box; color:#0f172a;
   resize:none; overflow:hidden; white-space:pre; line-height:26px;
 }
 /* formula bar */
-.formula-bar{ display:flex; align-items:center; gap:0; border-bottom:1px solid var(--border); background:#fff; height:36px; }
+.formula-bar{ display:flex; align-items:center; gap:0; border-bottom:1px solid var(--border); background:var(--bg-app); height:36px; }
 .fb-ref{ width:72px; flex-shrink:0; font-size:12px; font-weight:700; color:#64748b; font-family:'Courier New',monospace; text-align:center; border-right:1px solid var(--border); height:100%; display:flex; align-items:center; justify-content:center; }
 .fb-fx{ width:28px; flex-shrink:0; font-size:13px; color:#64748b; font-family:'Courier New',monospace; display:flex; align-items:center; justify-content:center; border-right:1px solid var(--border); height:100%; font-style:italic; }
 #formulaInput{
@@ -146,7 +146,7 @@ table.sheet-table th.sh{ background:#dbeafe !important; color:#1d4ed8 !important
 }
 /* autocomplete dropdown */
 #fnDropdown{
-  position:fixed; background:#fff; border:1px solid #cbd5e1; border-radius:10px;
+  position:fixed; background:var(--bg-app); border:1px solid #cbd5e1; border-radius:10px;
   box-shadow:0 8px 32px rgba(0,0,0,.14); z-index:9999; min-width:320px; max-width:460px;
   overflow:hidden; display:none; flex-direction:column;
 }
@@ -166,7 +166,7 @@ table.sheet-table th.sh{ background:#dbeafe !important; color:#1d4ed8 !important
   font-family:'Courier New',monospace; font-size:12px; color:#7c3aed; font-weight:600;
 }
 /* toolbar */
-.editor-toolbar-row2{ display:flex; align-items:center; gap:5px; padding:5px 12px; border-bottom:1px solid var(--border); background:#fff; flex-wrap:wrap; }
+.editor-toolbar-row2{ display:flex; align-items:center; gap:5px; padding:5px 12px; border-bottom:1px solid var(--border); background:var(--bg-app); flex-wrap:wrap; }
 /* chart / find panels */
 #chartPanel{ position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:200; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
 #chartPanel.hidden{ display:none !important; }
@@ -175,7 +175,7 @@ table.sheet-table th.sh{ background:#dbeafe !important; color:#1d4ed8 !important
 .chart-cfg label{ font-size:12px; font-weight:600; color:#64748b; display:flex; flex-direction:column; gap:4px; }
 .chart-cfg input,.chart-cfg select{ padding:6px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:13px; font-family:inherit; background:#f8fafc; color:#0f172a; }
 canvas#chartCanvas{ width:100%; display:block; border-radius:8px; }
-#findPanel{ position:absolute; top:8px; right:8px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:14px 16px; z-index:100; box-shadow:0 8px 24px rgba(0,0,0,.1); display:flex; flex-direction:column; gap:8px; width:290px; }
+#findPanel{ position:absolute; top:8px; right:8px; background:var(--bg-app); border:1px solid #e2e8f0; border-radius:10px; padding:14px 16px; z-index:100; box-shadow:0 8px 24px rgba(0,0,0,.1); display:flex; flex-direction:column; gap:8px; width:290px; }
 #findPanel.hidden{ display:none !important; }
 #findPanel input{ padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:13px; font-family:inherit; }
 .find-row{ display:flex; gap:6px; }
