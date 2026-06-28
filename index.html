@@ -409,11 +409,19 @@
     padding:6px 8px;color:var(--text-main);height:34px;flex-shrink:0;transition:var(--transition);
   }
   .tsel:hover{border-color:var(--primary);}
+  /* Select dropdown options in dark mode */
+  .tsel option{
+    background:var(--bg-card);
+    color:var(--text-main);
+  }
   .editor-body{flex:1;overflow:auto;position:relative;}
 
   /* ---------- COLOR INPUT styling helper ---------- */
   input[type="color"]{
     width:34px;height:34px;border:1px solid var(--border);border-radius:6px;padding:2px;background:var(--bg-card);cursor:pointer;
+  }
+  input[type="color"]:hover{
+    border-color:var(--primary);
   }
 </style>
 </head>
